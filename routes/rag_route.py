@@ -1,9 +1,9 @@
 from flask import Blueprint, request, jsonify
 from services.rag_pipline import query_with_fallback
 
-query_bp = Blueprint("query", __name__)
+rag_bp = Blueprint("rag", __name__)
 
-@query_bp.route("/query", methods=["POST"])
+@rag_bp.route("/query", methods=["POST"])
 def query():
     data = request.get_json() or {}
     q = data.get("query")
@@ -21,3 +21,4 @@ def query():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    

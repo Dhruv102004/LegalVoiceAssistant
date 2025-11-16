@@ -1,13 +1,15 @@
 from dotenv import load_dotenv
 load_dotenv()
 from flask import Flask
-from routes.rag_route import query_bp
+from routes.rag_route import rag_bp
+from routes.audio_route import audio_bp
 import os
+
 def create_app():
     app = Flask(__name__)
-    # Load env vars when running locally
-    # (you can use python-dotenv in development)
-    app.register_blueprint(query_bp, url_prefix="/api")
+    
+    app.register_blueprint(rag_bp, url_prefix="/rag")
+    app.register_blueprint(audio_bp, url_prefix="/audio")
     return app
 
 app = create_app()

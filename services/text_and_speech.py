@@ -26,28 +26,52 @@ def _guess_mime(filename):
 
 
 def speech_to_text(file_stream, filename, prompt_text="Translate this audio to English."):
-    mime_type = _guess_mime(filename)
-    suffix = os.path.splitext(filename)[1] or ""
+    # ─────────────────────────────────────
+    # Step 1: Save temporary file locally
+    # ─────────────────────────────────────
+    suffix = os.path.splitext(filename)[1]
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
     tmp_path = tmp.name
-    try:
-        data = file_stream.read()
-        if isinstance(data, str):
-            data = data.encode("utf-8")
-        tmp.write(data)
-        tmp.close()
 
-        upload_config = types.UploadFileConfig(display_name=filename, mime_type=mime_type)
+    data = file_stream.read()
+    if isinstance(data, str):
+        data = data.encode("utf-8")
+    tmp.write(data)
+    tmp.close()
+
+    try:
+        # ─────────────────────────────────────
+        # Step 2: Upload file
+        # ─────────────────────────────────────
+        mime_type = _guess_mime(filename)
+        upload_config = types.UploadFileConfig(
+            display_name=filename,
+            mime_type=mime_type
+        )
         uploaded = client.files.upload(file=tmp_path, config=upload_config)
 
+        # ─────────────────────────────────────
+        # Step 3: Wait until file is ACTIVE
+        # ─────────────────────────────────────
+        while True:
+            status = client.files.get(uploaded.name)
+            if status.state == "ACTIVE":
+                break
+            if status.state == "FAILED":
+                raise Exception("File processing failed on Gemini.")
+            time.sleep(0.5)
+
+        # ─────────────────────────────────────
+        # Step 4: Call STT model
+        # ─────────────────────────────────────
         response = client.models.generate_content(
-            model="gemini-2.5-flash-lite",
+            model="gemini-2.5-flash",   # supports audio
             contents=[
                 types.Part(text=prompt_text),
                 types.Part(
-                    file_data=types.FileData(
-                        mime_type=mime_type,
-                        file_uri=uploaded.uri
+                    audio=types.AudioData(
+                        file_uri=status.uri,
+                        mime_type=mime_type
                     )
                 )
             ]

@@ -4,10 +4,13 @@ from flask import Flask
 from routes.rag_route import rag_bp
 from routes.audio_route import audio_bp
 import os
+from flask_cors import CORS
+
 
 def create_app():
     app = Flask(__name__)
-    
+    CORS(app, resources={r"/*": {"origins": "*"}})
+
     app.register_blueprint(rag_bp, url_prefix="/rag")
     app.register_blueprint(audio_bp, url_prefix="/audio")
     return app

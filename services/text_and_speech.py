@@ -10,7 +10,7 @@ from google.genai import types
 from google.cloud import texttospeech
 
 # ========== CONFIG ==========
-API_KEY = os.environ.get("GOOGLE_API_KEY", "")
+API_KEY = os.environ.get("GOOGLE_API_KEY_2", "")
 client = genai.Client(api_key=API_KEY)
 _client = texttospeech.TextToSpeechClient()
 

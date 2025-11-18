@@ -49,7 +49,7 @@ def query_with_fallback(query):
         return run_search(query)
 
     # NEW: check if phrase occurs anywhere in the text
-    if "provided documents" in file_response.text:
+    if "provided" in file_response.text:
         return run_search(query)
 
     return file_response

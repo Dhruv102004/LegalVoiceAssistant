@@ -29,9 +29,9 @@ You must follow these rules for EVERY answer:
 def query_with_fallback(query):
     file_response = client.models.generate_content(
         model="gemini-2.5-flash",
-        contents=query+"for blind individuals in india"+"keep output less than 200 words STRICLTLY",
+        contents=query + " for blind individuals in india keep output less than 200 words STRICTLY",
         config=types.GenerateContentConfig(
-            max_output_tokens = 300,
+            max_output_tokens=300,
             tools=[
                 types.Tool(
                     file_search=types.FileSearch(
@@ -42,12 +42,15 @@ def query_with_fallback(query):
         )
     )
 
+    # Check grounding
     metadata = getattr(file_response.candidates[0], "grounding_metadata", None)
     has_chunks = metadata and getattr(metadata, "grounding_chunks", None)
     if not has_chunks:
         return run_search(query)
-    
-    if file_response.text.startswith("While the provided documents"):
+
+    # NEW: check if phrase occurs anywhere in the text
+    if "provided documents" in file_response.text:
         return run_search(query)
 
     return file_response
+

@@ -15,7 +15,7 @@ You must follow these rules for EVERY answer:
 1. All responses must be contextualized for blind individuals in India.
 2. Information must be India-specific whenever relevant.
 3. Responses must be short, precise, factual, and based on real data.
-4. Responses must be less than 200 words STRICTLY.
+4. Responses must be less than 200 words STRICTLY, DO NOT GENERATE ANSWERS GREATER THAN 200 WORDS.
 """ 
     final_query = custom_prefix + "\nQuery: " + query
     return _client.models.generate_content(

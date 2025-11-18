@@ -278,7 +278,7 @@ def convert_webm_to_wav(input_path: str, output_path: str, debug: bool = False) 
 
 
 # ========== SPEECH TO TEXT ==========
-def speech_to_text(file_stream, filename, prompt_text="Translate this audio to English.", debug: bool = False):
+def speech_to_text(file_stream, filename, prompt_text="Translate this audio to English, incase there is no speech, return error.", debug: bool = False):
     """
     Accepts uploaded file_stream and filename.
     If the file is .webm it gets converted to .wav first (using convert_webm_to_wav).

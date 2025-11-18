@@ -3,5 +3,6 @@ gunicorn
 python-dotenv
 google-genai 
 google-cloud-texttospeech
+flask-cors
 av
 numpy

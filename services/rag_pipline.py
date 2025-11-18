@@ -15,7 +15,7 @@ You must follow these rules for EVERY answer:
 1. All responses must be contextualized for blind individuals in India.
 2. Information must be India-specific whenever relevant.
 3. Responses must be short, precise, factual, and based on real data.
-4. Responses must be less than 250 words strictly.
+4. Responses must be less than 200 words STRICTLY.
 """ 
     final_query = custom_prefix + "\nQuery: " + query
     return _client.models.generate_content(
@@ -29,8 +29,9 @@ You must follow these rules for EVERY answer:
 def query_with_fallback(query):
     file_response = client.models.generate_content(
         model="gemini-2.5-flash",
-        contents=query+"for blind individuals in india",
+        contents=query+"for blind individuals in india"+"keep output less than 200 words STRICLTLY",
         config=types.GenerateContentConfig(
+            max_output_tokens = 300,
             tools=[
                 types.Tool(
                     file_search=types.FileSearch(

@@ -36,16 +36,17 @@ def generate_audio():
         return jsonify({"error": "'lang' must be either 'hi' or 'en'"}), 400
 
     try:
-        mp3_bytes = text_to_speech(text, lang)
+        # Get WAV bytes from TTS
+        wav_bytes = text_to_speech(text, lang)
 
-        buf = BytesIO(mp3_bytes)
+        buf = BytesIO(wav_bytes)
         buf.seek(0)
 
         return send_file(
             buf,
-            mimetype="audio/mpeg",
+            mimetype="audio/wav",
             as_attachment=True,
-            download_name=f"tts_{lang}.mp3"
+            download_name=f"tts_{lang}.wav"
         )
 
     except Exception as e:

@@ -4,9 +4,6 @@ import tempfile
 import wave
 import numpy as np
 import av
-import re
-import io
-from typing import List
 
 from google import genai
 from google.genai import types
@@ -16,6 +13,12 @@ from google.cloud import texttospeech
 API_KEY = os.environ.get("GOOGLE_API_KEY_2", "")
 client = genai.Client(api_key=API_KEY)
 _client = texttospeech.TextToSpeechClient()
+
+VOICE_MAP = {
+    "hi": {"language_code": "hi-IN", "voice_name": "hi-IN-Standard-F"},
+    "en": {"language_code": "en-US", "voice_name": "en-US-Standard-C"},
+}
+
 
 # ========== HELPERS ==========
 def _guess_mime(filename: str) -> str:
@@ -356,136 +359,29 @@ def translate_to_hindi(english_text: str) -> str:
     response = client.models.generate_content(model="gemini-2.5-flash-lite", contents=[types.Part(text=prompt)])
     return response.text.strip()
 
-VOICE_MAP = {
-    "hi": {"language_code": "hi-IN", "voice_name": "hi-IN-Standard-F"},
-    "en": {"language_code": "en-US", "voice_name": "en-US-Standard-C"},
-}
-
-DEFAULT_MAX_TEXT_BYTES = 4500  # keep safely below 5000
-SAMPLE_RATE_HZ = 24000
-NUM_CHANNELS = 1
-SAMPLE_WIDTH_BYTES = 2  # LINEAR16 => 16-bit PCM
-
-# ======================
-# Helper functions
-# ======================
-def _split_text_into_chunks(text: str, max_bytes: int = DEFAULT_MAX_TEXT_BYTES) -> List[str]:
-    """
-    Split text into UTF-8 byte-sized chunks (prefer sentence boundaries).
-    Falls back to splitting on words when a sentence is too large.
-    """
-    if not text:
-        return []
-
-    # Split on sentence boundaries and newlines (simple heuristic)
-    sentences = re.split(r'(?<=[\.\?\!\n])\s+', text)
-    chunks: List[str] = []
-    current = ""
-
-    for s in sentences:
-        s = s.strip()
-        if not s:
-            continue
-        candidate = (current + " " + s).strip() if current else s
-        if len(candidate.encode("utf-8")) <= max_bytes:
-            current = candidate
-        else:
-            if current:
-                chunks.append(current)
-                current = s
-            else:
-                # Sentence itself is too big — break on words
-                words = s.split()
-                part = ""
-                for w in words:
-                    candidate_part = (part + " " + w).strip() if part else w
-                    if len(candidate_part.encode("utf-8")) <= max_bytes:
-                        part = candidate_part
-                    else:
-                        if part:
-                            chunks.append(part)
-                        # If a single word exceeds limit (rare), force it as its own chunk
-                        if len(w.encode("utf-8")) > max_bytes:
-                            chunks.append(w)
-                            part = ""
-                        else:
-                            part = w
-                if part:
-                    chunks.append(part)
-                current = ""
-    if current:
-        chunks.append(current)
-    return chunks
-
-def _synthesize_chunk_pcm(tts_client: texttospeech.TextToSpeechClient, text_chunk: str,
-                          language_code: str, voice_name: str) -> bytes:
-    """
-    Synthesize a chunk using LINEAR16 and return raw PCM bytes.
-    """
-    synthesis_input = texttospeech.SynthesisInput(text=text_chunk)
-    voice = texttospeech.VoiceSelectionParams(language_code=language_code, name=voice_name)
-    audio_config = texttospeech.AudioConfig(
-        audio_encoding=texttospeech.AudioEncoding.LINEAR16,
-        sample_rate_hertz=SAMPLE_RATE_HZ,
-        effects_profile_id=["small-bluetooth-speaker-class-device"],
-        speaking_rate=1,
-        pitch=1,
-    )
-    response = tts_client.synthesize_speech(input=synthesis_input, voice=voice, audio_config=audio_config)
-    return response.audio_content  # raw LINEAR16 PCM bytes
-
-
-def _pcm_frames_to_wav_bytes(pcm_frames: bytes, sample_rate: int = SAMPLE_RATE_HZ,
-                             channels: int = NUM_CHANNELS, sampwidth: int = SAMPLE_WIDTH_BYTES) -> bytes:
-    """
-    Wrap raw PCM frames into a WAV container and return bytes.
-    """
-    buf = io.BytesIO()
-    with wave.open(buf, 'wb') as wf:
-        wf.setnchannels(channels)
-        wf.setsampwidth(sampwidth)
-        wf.setframerate(sample_rate)
-        wf.writeframes(pcm_frames)
-    return buf.getvalue()
 
 # ========== TEXT TO SPEECH ==========
 def text_to_speech(text: str, lang: str):
-    """
-    Convert text to speech. Handles long input by splitting into chunks,
-    synthesizing each chunk as LINEAR16 PCM, concatenating PCM frames and
-    returning a WAV bytes object.
-
-    Returns:
-        bytes: WAV file bytes (audio/wav)
-    Raises:
-        ValueError: if text is empty
-    """
     if not text:
         raise ValueError("Empty text provided")
 
     voice_settings = VOICE_MAP.get(lang, VOICE_MAP["en"])
-    language_code = voice_settings.get("language_code", "en-US")
-    voice_name = voice_settings.get("voice_name")
+    language_code = voice_settings["language_code"]
+    voice_name = voice_settings["voice_name"]
 
-    # optional translation hook (if defined elsewhere in your project)
     if lang == "hi":
         text_to_speak = translate_to_hindi(text)
     else:
         text_to_speak = text
 
-    # If the text is small enough, do a single request and wrap to WAV
-    if len(text_to_speak.encode("utf-8")) <= DEFAULT_MAX_TEXT_BYTES:
-        pcm = _synthesize_chunk_pcm(_client, text_to_speak, language_code, voice_name)
-        wav_bytes = _pcm_frames_to_wav_bytes(pcm)
-        return wav_bytes
+    synthesis_input = texttospeech.SynthesisInput(text=text_to_speak)
+    voice = texttospeech.VoiceSelectionParams(language_code=language_code, name=voice_name)
+    audio_config = texttospeech.AudioConfig(
+        audio_encoding=texttospeech.AudioEncoding.MP3,
+        effects_profile_id=["small-bluetooth-speaker-class-device"],
+        speaking_rate=1,
+        pitch=1,
+    )
 
-    # Otherwise, split and synthesize in chunks
-    chunks = _split_text_into_chunks(text_to_speak, max_bytes=DEFAULT_MAX_TEXT_BYTES)
-    pcm_frames_list: List[bytes] = []
-    for chunk in chunks:
-        pcm = _synthesize_chunk_pcm(_client, chunk, language_code, voice_name)
-        pcm_frames_list.append(pcm)
-
-    all_pcm = b"".join(pcm_frames_list)
-    wav_bytes = _pcm_frames_to_wav_bytes(all_pcm)
-    return wav_bytes
+    response = _client.synthesize_speech(input=synthesis_input, voice=voice, audio_config=audio_config)
+    return response.audio_content

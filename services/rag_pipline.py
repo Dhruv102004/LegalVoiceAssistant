@@ -31,7 +31,6 @@ def query_with_fallback(query):
         model="gemini-2.5-flash",
         contents=query + " for blind individuals in india keep output less than 200 words STRICTLY",
         config=types.GenerateContentConfig(
-            max_output_tokens=300,
             tools=[
                 types.Tool(
                     file_search=types.FileSearch(
